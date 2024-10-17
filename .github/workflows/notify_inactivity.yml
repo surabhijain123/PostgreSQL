@@ -2,6 +2,7 @@ name: Notify inactive PRs
 on:
   schedule:
     - cron: "10 5 * * *"  # Runs daily at 04:37 UTC
+  workflow_dispatch:
 
 jobs:
   notify-inactive-prs:
