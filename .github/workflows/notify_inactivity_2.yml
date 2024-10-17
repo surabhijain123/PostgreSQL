@@ -15,34 +15,43 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Fetching open PRs..."
-          prs=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open")
+            const testResponse = await fetch(`https://api.github.com/user`, {
+            headers: {
+                Authorization: `token ${github.token}`,
+                Accept: 'application/vnd.github.v3+json',
+            },
+            });
+            const testData = await testResponse.json();
+            console.log(testData); // Check if you get user data or an error
 
-          echo "Processing PRs..."
-          one_minute_ago=$(date -u -d "1 minute ago" +"%Y-%m-%dT%H:%M:%SZ")
+            echo "Fetching open PRs..."
+            prs=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+                "https://api.github.com/repos/${{ github.repository }}/pulls?state=open")
 
-          for row in $(echo "${prs}" | jq -r '.[] | @base64'); do
-            _jq() {
-              echo ${row} | base64 --decode | jq -r ${1}
-            }
+            echo "Processing PRs..."
+            one_minute_ago=$(date -u -d "1 minute ago" +"%Y-%m-%dT%H:%M:%SZ")
 
-            pr_number=$(_jq '.number')
-            pr_title=$(_jq '.title')
-            pr_updated_at=$(_jq '.updated_at')
-            assignees=$(_jq '.assignees | map(.login) | join(", ")')
+            for row in $(echo "${prs}" | jq -r '.[] | @base64'); do
+                _jq() {
+                echo ${row} | base64 --decode | jq -r ${1}
+                }
 
-            if [[ "$pr_updated_at" < "$one_minute_ago" ]]; then
-              if [ -n "$assignees" ]; then
-                echo "Tagging assignees for PR #${pr_number}: ${assignees}"
-                curl -s -X POST -H "Authorization: token $GITHUB_TOKEN" \
-                  -H "Content-Type: application/json" \
-                  -d "{\"body\": \"@${assignees} Please review this PR.\"}" \
-                  "https://api.github.com/repos/${{ github.repository }}/issues/${pr_number}/comments"
-              else
-                echo "No assignees for PR #${pr_number}"
-              fi
-            else
-              echo "PR #${pr_number} was updated within the last minute"
-            fi
-          done
+                pr_number=$(_jq '.number')
+                pr_title=$(_jq '.title')
+                pr_updated_at=$(_jq '.updated_at')
+                assignees=$(_jq '.assignees | map(.login) | join(", ")')
+
+                if [[ "$pr_updated_at" < "$one_minute_ago" ]]; then
+                if [ -n "$assignees" ]; then
+                    echo "Tagging assignees for PR #${pr_number}: ${assignees}"
+                    curl -s -X POST -H "Authorization: token $GITHUB_TOKEN" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"body\": \"@${assignees} Please review this PR.\"}" \
+                    "https://api.github.com/repos/${{ github.repository }}/issues/${pr_number}/comments"
+                else
+                    echo "No assignees for PR #${pr_number}"
+                fi
+                else
+                echo "PR #${pr_number} was updated within the last minute"
+                fi
+            done
