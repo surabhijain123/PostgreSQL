@@ -1,7 +1,7 @@
 name: Notify inactive PRs
 on:
   schedule:
-    - cron: "35 4 * * *"  # Runs daily at 04:00 UTC
+    - cron: "37 4 * * *"  # Runs daily at 04:00 UTC
 
 jobs:
   notify-inactive-prs:
@@ -15,7 +15,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const currentTime = new Date();
-            const fiveMinutesInMillis = 5 * 60 * 1000;
+            const fiveMinutesInMillis = 30 * 1000;
 
             // Fetch all open pull requests
             const pullRequests = await github.paginate(github.pulls.list, {
