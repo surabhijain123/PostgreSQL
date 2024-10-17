@@ -1,7 +1,7 @@
 name: Notify inactive PRs
 on:
   schedule:
-    - cron: "37 4 * * *"  # Runs daily at 04:00 UTC
+    - cron: "56 4 * * *"  # Runs daily at 04:37 UTC
 
 jobs:
   notify-inactive-prs:
@@ -10,7 +10,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Send reminders for inactive PRs
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7  # Use updated version
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -18,7 +18,7 @@ jobs:
             const fiveMinutesInMillis = 30 * 1000;
 
             // Fetch all open pull requests
-            const pullRequests = await github.paginate(github.pulls.list, {
+            const pullRequests = await github.paginate(github.rest.pulls.list, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open',
@@ -35,19 +35,19 @@ jobs:
 
                 // Post a comment to the PR to notify assignees of inactivity
                 if (assignees.length > 0) {
-                  await github.issues.createComment({
+                  await github.rest.issues.createComment({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
                     issue_number: pr.number,
-                    body: `Hello ${assignees}, this PR has been inactive for more than 24 hours. Please take a look when you get a chance!`,
+                    body: `Hello ${assignees}, this PR has been inactive for more than 5 minutes. Please take a look when you get a chance!`,
                   });
                 } else {
                   // If no assignees, notify in general
-                  await github.issues.createComment({
+                  await github.rest.issues.createComment({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
                     issue_number: pr.number,
-                    body: `This PR has been inactive for more than 24 hours. Please take a look when you get a chance!`,
+                    body: `This PR has been inactive for more than 5 minutes. Please take a look when you get a chance!`,
                   });
                 }
               }
