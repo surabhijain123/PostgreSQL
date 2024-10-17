@@ -1,0 +1,54 @@
+name: Notify inactive PRs
+on:
+  schedule:
+    - cron: "35 4 * * *"  # Runs daily at 04:00 UTC
+
+jobs:
+  notify-inactive-prs:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Send reminders for inactive PRs
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const currentTime = new Date();
+            const fiveMinutesInMillis = 5 * 60 * 1000;
+
+            // Fetch all open pull requests
+            const pullRequests = await github.paginate(github.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+            });
+
+            for (const pr of pullRequests) {
+              // Get the last updated time of the PR
+              const lastUpdatedTime = new Date(pr.updated_at);
+              const timeSinceLastUpdate = currentTime - lastUpdatedTime;
+
+              // If no activity for more than 5 minutes
+              if (timeSinceLastUpdate > fiveMinutesInMillis) {
+                const assignees = pr.assignees.map(assignee => `@${assignee.login}`).join(', ');
+
+                // Post a comment to the PR to notify assignees of inactivity
+                if (assignees.length > 0) {
+                  await github.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: pr.number,
+                    body: `Hello ${assignees}, this PR has been inactive for more than 24 hours. Please take a look when you get a chance!`,
+                  });
+                } else {
+                  // If no assignees, notify in general
+                  await github.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: pr.number,
+                    body: `This PR has been inactive for more than 24 hours. Please take a look when you get a chance!`,
+                  });
+                }
+              }
+            }
