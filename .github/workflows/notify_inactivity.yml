@@ -1,7 +1,7 @@
 name: Notify inactive PRs
 on:
   schedule:
-    - cron: "56 4 * * *"  # Runs daily at 04:37 UTC
+    - cron: "0 5 * * *"  # Runs daily at 04:37 UTC
 
 jobs:
   notify-inactive-prs:
@@ -17,15 +17,15 @@ jobs:
             const currentTime = new Date();
             const fiveMinutesInMillis = 30 * 1000;
 
-            // Fetch all open pull requests
-            const pullRequests = await github.paginate(github.rest.pulls.list, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-            });
+            // Fetch open pull requests using the GitHub API via fetch
+            const prs = await fetch(`https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/pulls`, {
+              headers: {
+                Authorization: `token ${github.token}`,
+                Accept: 'application/vnd.github.v3+json',
+              },
+            }).then(response => response.json());
 
-            for (const pr of pullRequests) {
-              // Get the last updated time of the PR
+            for (const pr of prs) {
               const lastUpdatedTime = new Date(pr.updated_at);
               const timeSinceLastUpdate = currentTime - lastUpdatedTime;
 
@@ -35,19 +35,27 @@ jobs:
 
                 // Post a comment to the PR to notify assignees of inactivity
                 if (assignees.length > 0) {
-                  await github.rest.issues.createComment({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: pr.number,
-                    body: `Hello ${assignees}, this PR has been inactive for more than 5 minutes. Please take a look when you get a chance!`,
+                  await fetch(`https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/issues/${pr.number}/comments`, {
+                    method: 'POST',
+                    headers: {
+                      Authorization: `token ${github.token}`,
+                      Accept: 'application/vnd.github.v3+json',
+                    },
+                    body: JSON.stringify({
+                      body: `Hello ${assignees}, this PR has been inactive for more than 5 minutes. Please take a look when you get a chance!`
+                    }),
                   });
                 } else {
                   // If no assignees, notify in general
-                  await github.rest.issues.createComment({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: pr.number,
-                    body: `This PR has been inactive for more than 5 minutes. Please take a look when you get a chance!`,
+                  await fetch(`https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/issues/${pr.number}/comments`, {
+                    method: 'POST',
+                    headers: {
+                      Authorization: `token ${github.token}`,
+                      Accept: 'application/vnd.github.v3+json',
+                    },
+                    body: JSON.stringify({
+                      body: `This PR has been inactive for more than 5 minutes. Please take a look when you get a chance!`
+                    }),
                   });
                 }
               }
